@@ -23,7 +23,7 @@ uv sync
 # terminal 1: start the API and leave it running
 uv run uvicorn caching_service.main:create_app --factory --reload
 # terminal 2: once the API is up, send a payload
-uv run cache-cli -j '{"list_1": ["first string"], "list_2": ["other string"]}'
+uv run cache-cli -i examples/sample.json
 ```
 
 Interactive API docs: http://localhost:8000/docs
@@ -36,7 +36,8 @@ Interactive API docs: http://localhost:8000/docs
 | GET    | `/payload/{id}` | `200 {"output"}`                                     | `404` unknown id, `422` malformed id             |
 
 Request body: `{"list_1": [...], "list_2": [...]}`, both lists with the same length,
-1 to 1000 items, strings up to 1000 characters.
+1 to 1000 items, strings up to 1000 characters, so one request cannot trigger unbounded
+transformer work; violations are a 422, never a 500.
 
 Validation errors keep FastAPI's `{"detail": [...]}` shape but leave out each error's `input` field: echoing
 a lone surrogate such as `"\ud800"` back would make the error response itself impossible to encode.
@@ -44,7 +45,7 @@ a lone surrogate such as `"\ud800"` back would make the error response itself im
 ## Architecture
 
 ```
-api/ (FastAPI: schemas, routes, per-request wiring)      infrastructure/ (SQLAlchemy, transformer)
+api/ (FastAPI: schemas, routes, dependency)              infrastructure/ (SQLAlchemy, transformer)
                      \                                      /
                       ->  application/ (PayloadService, ports)  <-   implements the ports
                                      |
@@ -55,14 +56,16 @@ Dependencies point inwards: infrastructure implements the ports, and the applica
 imports nothing from `api` or `infrastructure`. The use case only knows the `Transformer`,
 `TransformationCache` and `PayloadRepository` protocols, so it is unit-tested with
 in-memory fakes, and the SQL adapters are tested against a real database. `main.create_app()`
-chooses the transformer and the database engine, and `api/dependencies.py` binds the SQL
-repositories to each request's session.
+is the only place that chooses concrete classes: the transformer, the database engine and the
+SQL adapters. It builds one `PayloadService` at startup, and `api/dependencies.py` only hands
+it to the routes.
 
 ## Following one request
 
 `POST /payload`
 1. `api/schemas.py` validates the body (equal lengths, size limits, no unknown fields).
-2. `api/dependencies.py` opens one database session and builds a `PayloadService`.
+2. `api/dependencies.py` hands the routes the `PayloadService` built at startup. Its SQL
+   adapters open a short session per call, so no connection is held while the transformer runs.
 3. `PayloadService.create` derives the payload id from the input (UUIDv5). If that payload
    exists, it answers right away: no cache lookup, no transformer call.
 4. Otherwise it collects the distinct strings, reads the cached ones in one query, calls the
@@ -94,7 +97,9 @@ repositories to each request's session.
 cache-cli [-H|--host URL] [-r|--repeat N] [-i|--input FILE|-] [-j|--json JSON] [-o|--output FILE|-] [-h|--help]
 ```
 
-Exactly one of `--input` and `--json` is required. Each iteration POSTs the payload, GETs it
+Exactly one of `--input` and `--json` is required (inline JSON as in
+`-j '{"list_1": ["a"], "list_2": ["b"]}'` is quoted for POSIX shells; in Windows PowerShell
+use `--input`). Each iteration POSTs the payload, GETs it
 back and writes one JSON line: `{"iteration", "id", "output", "elapsed_ms"}`. With
 `--repeat`, the first iteration pays the simulated transformer latency (unless the payload
 already exists in the database) and the rest come from the cache.
@@ -142,6 +147,9 @@ Quality gates: `uv run ruff format --check . && uv run ruff check . && uv run my
 - **No single-flight between concurrent requests.** Two simultaneous requests with the same
   new string both call the transformer; the result stays correct thanks to idempotent
   writes. An in-process lock map or a distributed lock would remove the duplicate call.
+- **Concurrent identical creates can both answer 201.** Two simultaneous identical POSTs can
+  both see "not created yet" and return 201 with the same id; the data stays correct thanks
+  to idempotent writes.
 - **Unbounded concurrency towards the transformer** (at most 2000 calls per request, given
   the input limits). An `asyncio.Semaphore` is the fix if the real service rate-limits.
 - **No in-memory cache in front of the database** and **no expiry or transformer
