@@ -1,0 +1,46 @@
+[project]
+name = "caching-service"
+version = "0.1.0"
+description = "FastAPI microservice that caches transformer results and serves interleaved payloads"
+requires-python = ">=3.13"
+dependencies = [
+    "aiosqlite>=0.20",
+    "asyncpg>=0.30",
+    "fastapi>=0.143",
+    "httpx2>=2.13",
+    "pydantic-settings>=2.16",
+    "sqlalchemy[asyncio]>=2.1",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.scripts]
+cache-cli = "caching_service.cli:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.11",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "ASYNC", "RUF"]
+
+[tool.mypy]
+strict = true
+mypy_path = "src"
+packages = ["caching_service"]
+plugins = ["pydantic.mypy"]
