@@ -132,11 +132,11 @@ The repository tests also run against PostgreSQL:
 ```sh
 docker compose up -d db
 docker compose exec db createdb -U cache cache_test
-TEST_DATABASE_URL=postgresql+asyncpg://cache:cache@localhost:55432/cache_test \
+TEST_DATABASE_URL=postgresql+asyncpg://cache:cache@localhost:5432/cache_test \
   uv run pytest tests/integration/test_repositories.py
 ```
 
-The host port is 55432 because compose publishes PostgreSQL there, so it does not clash with a PostgreSQL installed locally on 5432.
+Compose publishes PostgreSQL on `127.0.0.1:5432`; stop any locally installed PostgreSQL on that port first.
 
 Quality gates: `uv run ruff format --check . && uv run ruff check . && uv run mypy`.
 
