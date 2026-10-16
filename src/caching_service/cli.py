@@ -132,7 +132,8 @@ def run(settings: CliSettings, client: httpx2.Client, stdin: TextIO, stdout: Tex
                 "output": output,
                 "elapsed_ms": elapsed_ms,
             }
-            out.write(json.dumps(record, ensure_ascii=False) + "\n")
+            # ASCII-escaped: a redirected stdout on Windows may use a legacy code page.
+            out.write(json.dumps(record) + "\n")
 
 
 def main(argv: list[str] | None = None) -> None:
