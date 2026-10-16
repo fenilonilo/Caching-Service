@@ -20,7 +20,9 @@ Locally (SQLite file `cache.db`):
 
 ```sh
 uv sync
+# terminal 1: start the API and leave it running
 uv run uvicorn caching_service.main:create_app --factory --reload
+# terminal 2: once the API is up, send a payload
 uv run cache-cli -j '{"list_1": ["first string"], "list_2": ["other string"]}'
 ```
 
