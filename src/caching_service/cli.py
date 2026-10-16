@@ -39,8 +39,10 @@ class CliSettings(BaseSettings):
         cli_prog_name="cache-cli", case_sensitive=True, cli_hide_none_type=True
     )
 
+    # 127.0.0.1, not localhost: uvicorn binds IPv4 by default, and on Windows localhost tries ::1
+    # first, costing ~2 s per refused attempt.
     host: AnyHttpUrl = Field(
-        default=AnyHttpUrl("http://localhost:8000"),
+        default=AnyHttpUrl("http://127.0.0.1:8000"),
         validation_alias=AliasChoices("H", "host"),
         description="Base URL of the caching service",
     )
@@ -145,3 +147,5 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(f"cache-cli: server answered {exc.response.status_code}: {exc.response.text}")
     except httpx2.TransportError as exc:
         sys.exit(f"cache-cli: request failed: {exc!r}")
+    except (OSError, UnicodeDecodeError) as exc:
+        sys.exit(f"cache-cli: {exc}")

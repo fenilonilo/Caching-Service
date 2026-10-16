@@ -58,3 +58,9 @@ def test_main_exits_with_a_message_when_the_host_is_unreachable() -> None:
     with pytest.raises(SystemExit) as exit_info:
         main(["-H", "http://127.0.0.1:9", "-j", SAMPLE_JSON])
     assert "request failed" in str(exit_info.value.code)
+
+
+def test_main_exits_with_a_message_when_the_output_cannot_be_written(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        main(["-j", SAMPLE_JSON, "-o", str(tmp_path / "missing-dir" / "out.jsonl")])
+    assert str(exit_info.value.code).startswith("cache-cli: ")

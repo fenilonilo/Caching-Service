@@ -30,10 +30,10 @@ def test_long_flags_are_parsed() -> None:
     )
 
 
-def test_defaults_target_localhost_once_and_write_to_stdout() -> None:
+def test_defaults_target_the_local_service_once_and_write_to_stdout() -> None:
     settings = parse("-j", VALID_JSON)
     assert (str(settings.host), settings.repeat, settings.output_file) == (
-        "http://localhost:8000/",
+        "http://127.0.0.1:8000/",
         1,
         "-",
     )
@@ -64,7 +64,7 @@ def test_invalid_arguments_are_rejected_before_any_request(args: list[str]) -> N
 def test_environment_cannot_redirect_the_tool(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in ("HOST", "H", "REPEAT"):
         monkeypatch.setenv(name, "http://elsewhere:1")
-    assert str(parse("-j", VALID_JSON).host) == "http://localhost:8000/"
+    assert str(parse("-j", VALID_JSON).host) == "http://127.0.0.1:8000/"
 
 
 def test_dash_h_shows_help(capsys: pytest.CaptureFixture[str]) -> None:
