@@ -1,24 +1,17 @@
-"""Request-scoped wiring: one database session per request, shared by both repositories."""
+"""Wiring: routes receive the application's single PayloadService, built in main.create_app()."""
 
-from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends, Request
 
 from caching_service.application.service import PayloadService
-from caching_service.infrastructure.repositories import (
-    SqlPayloadRepository,
-    SqlTransformationCache,
-)
 
 
-async def get_payload_service(request: Request) -> AsyncIterator[PayloadService]:
-    async with request.app.state.sessionmaker() as session:
-        yield PayloadService(
-            transformer=request.app.state.transformer,
-            cache=SqlTransformationCache(session),
-            payloads=SqlPayloadRepository(session),
-        )
+def get_payload_service(request: Request) -> PayloadService:
+    # Safe to share across requests: the service holds no state, and its SQL adapters open a
+    # short session per call instead of keeping a connection for the whole request.
+    service: PayloadService = request.app.state.service
+    return service
 
 
 PayloadServiceDep = Annotated[PayloadService, Depends(get_payload_service)]

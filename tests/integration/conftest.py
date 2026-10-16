@@ -6,7 +6,12 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from caching_service.config import Settings
 from caching_service.infrastructure.database import Base, create_schema
@@ -25,14 +30,18 @@ def database_url(tmp_path: Path) -> str:
 
 
 @pytest.fixture
-async def session(database_url: str) -> AsyncIterator[AsyncSession]:
+async def engine(database_url: str) -> AsyncIterator[AsyncEngine]:
     engine = create_async_engine(database_url)
     await create_schema(engine)
-    async with async_sessionmaker(engine, expire_on_commit=False)() as session:
-        yield session
+    yield engine
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.drop_all)
     await engine.dispose()
+
+
+@pytest.fixture
+def sessions(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    return async_sessionmaker(engine, expire_on_commit=False)
 
 
 @pytest.fixture

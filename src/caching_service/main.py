@@ -11,8 +11,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from caching_service.api.routes import router
 from caching_service.application.ports import Transformer
+from caching_service.application.service import PayloadService
 from caching_service.config import Settings
 from caching_service.infrastructure.database import create_schema
+from caching_service.infrastructure.repositories import (
+    SqlPayloadRepository,
+    SqlTransformationCache,
+)
 from caching_service.infrastructure.transformer import UppercaseTransformer
 
 
@@ -34,9 +39,11 @@ def create_app(settings: Settings | None = None, transformer: Transformer | None
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         engine = create_async_engine(config.database_url)
         await create_schema(engine)
-        app.state.sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
-        app.state.transformer = transformer or UppercaseTransformer(
-            config.transformer_latency_seconds
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        app.state.service = PayloadService(
+            transformer=transformer or UppercaseTransformer(config.transformer_latency_seconds),
+            cache=SqlTransformationCache(sessions),
+            payloads=SqlPayloadRepository(sessions),
         )
         yield
         await engine.dispose()
