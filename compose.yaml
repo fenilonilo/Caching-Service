@@ -17,7 +17,8 @@ services:
       POSTGRES_PASSWORD: cache
       POSTGRES_DB: cache
     ports:
-      - "5432:5432"  # published so the repository tests can run against it
+      # 55432 on the host avoids clashing with a locally installed PostgreSQL on 5432.
+      - "55432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U cache -d cache"]
       interval: 2s
