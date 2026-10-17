@@ -28,7 +28,7 @@ class PayloadRow(Base):
 
 
 async def create_schema(engine: AsyncEngine) -> None:
-    # ponytail: create_all at startup; move to Alembic migrations once the schema changes
+    # shortcut: create_all at startup; move to Alembic migrations once the schema changes
     # or several replicas start at the same time (create_all is check-then-create).
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
