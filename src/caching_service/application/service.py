@@ -65,7 +65,7 @@ class PayloadService:
         if not missing:
             return known
 
-        # ponytail: unbounded fan-out (capped by request limits); wrap the calls in an
+        # shortcut: unbounded fan-out (capped by request limits); wrap the calls in an
         # asyncio.Semaphore if the real service enforces a rate limit.
         results = await asyncio.gather(
             *(self._transformer.transform(value) for value in missing),
